@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Where you live in Harlem determines how far you walk for essential services. An interactive data story.">
+    <meta property="og:title" content="The Hidden Geography of Help">
+    <meta property="og:description" content="Interactive data story about social service access in Harlem">
+    <meta property="og:type" content="article">
+    <meta name="twitter:card" content="summary_large_image">
+    
+    <title>The Hidden Geography of Help | Charles Hill Data Story</title>
+    
+    <!-- External Libraries -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/scrollama/3.2.0/scrollama.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --dark: #0a0a0a;
+            --light: #e0e0e0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: var(--dark);
+            color: var(--light);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            z-index: 10000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        nav .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav .logo {
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        nav .nav-links {
+            display: flex;
+            gap: 2rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        nav a {
+            color: var(--light);
+            text-decoration: none;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        nav a:hover {
+            opacity: 1;
+        }
+
+        /* Hero */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            position: relative;
+            margin-top: 60px;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            line-height: 1.1;
+            animation: fadeInUp 1s ease-out;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero .subtitle {
+            font-size: clamp(1.1rem, 3vw, 1.8rem);
+            opacity: 0.9;
+            margin: 0 auto 2rem;
+            animation: fadeInUp 1s ease-out 0.3s backwards;
+            font-style: italic;
+        }
+
+        .hero .byline {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            animation: fadeInUp 1s ease-out 0.6s backwards;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            animation: bounce 2s infinite;
+            opacity: 0.6;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Prose Section */
+        .prose {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 8rem 2rem;
+        }
+
+        .prose h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: var(--primary);
+        }
+
+        .prose h3 {
+            font-size: 1.8rem;
+            margin: 3rem 0 1rem;
+            color: var(--secondary);
+        }
+
+        .prose p {
+            font-size: 1.3rem;
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-highlight {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--secondary);
+            display: block;
+            margin: 3rem 0;
+            text-align: center;
+        }
+
+        .stat-subtext {
+            text-align: center;
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin-top: -2rem;
+            margin-bottom: 3rem;
+        }
+
+        /* Scrollytelling */
+        #scrolly {
+            position: relative;
+            display: flex;
+            padding: 0;
+            background: var(--dark);
+        }
+
+        .sticky-viz {
+            position: sticky;
+            top: 60px;
+            width: 55%;
+            height: calc(100vh - 60px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f0f0f;
+            border-right: 1px solid #222;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: rgba(0, 0, 0, 0.95);
+            color: #fff;
+            border-radius: 8px;
+            padding: 0;
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 12px 15px;
+            font-weight: 700;
+            font-size: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .popup-body {
+            padding: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .popup-address {
+            font-size: 13px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+
+        .popup-category {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            z-index: 1000;
+            max-width: 200px;
+            border: 1px solid #333;
+        }
+
+        .legend h4 {
+            margin-bottom: 10px;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .steps {
+            width: 45%;
+            padding: 0;
+        }
+
+        .step {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 3rem;
+            opacity: 0.3;
+            transition: opacity 0.5s;
+        }
+
+        .step.is-active {
+            opacity: 1;
+        }
+
+        .step-content {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 2.5rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            border-left: 4px solid var(--primary);
+        }
+
+        .step h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .step p {
+            font-size: 1.2rem;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .step .highlight {
+            color: var(--secondary);
+            font-weight: 700;
+        }
+
+        /* Data Visualization Section */
+        .data-viz {
+            padding: 6rem 2rem;
+            background: #0d0d0d;
+        }
+
+        .data-viz-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .data-viz h2 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .data-viz p {
+            text-align: center;
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto 4rem;
+            opacity: 0.9;
+        }
+
+        #chart {
+            width: 100%;
+            height: 500px;
+        }
+
+        /* Interactive Explorer */
+        .explorer {
+            padding: 6rem 2rem;
+            background: var(--dark);
+        }
+
+        .explorer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .explorer h2 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--primary);
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 3rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .filter-btn {
+            padding: 0.8rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--light);
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-color: transparent;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .service-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .service-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--primary);
+        }
+
+        .service-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: var(--light);
+        }
+
+        .service-card .address {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-bottom: 0.8rem;
+        }
+
+        .service-card .category-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Methodology */
+        .methodology {
+            padding: 6rem 2rem;
+            background: #0d0d0d;
+        }
+
+        .methodology-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .methodology h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: var(--primary);
+        }
+
+        .methodology h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--secondary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .methodology p, .methodology ul {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+        }
+
+        .methodology ul {
+            padding-left: 2rem;
+        }
+
+        .methodology li {
+            margin-bottom: 0.8rem;
+        }
+
+        /* Conclusion */
+        .conclusion {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 50%, #1a1a2e 100%);
+        }
+
+        .conclusion h2 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            color: var(--primary);
+        }
+
+        .conclusion p {
+            font-size: 1.3rem;
+            max-width: 700px;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .cta-button.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--dark);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        footer p {
+            opacity: 0.6;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            nav .nav-links {
+                display: none;
+            }
+
+            #scrolly {
+                flex-direction: column;
+            }
+
+            .sticky-viz {
+                position: relative;
+                width: 100%;
+                height: 60vh;
+                top: 0;
+                border-right: none;
+                border-bottom: 1px solid #222;
+            }
+
+            .steps {
+                width: 100%;
+            }
+
+            .step {
+                padding: 2rem 1.5rem;
+            }
+
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .legend {
+                bottom: 10px;
+                left: 10px;
+                padding: 10px;
+                max-width: 150px;
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-content">
+            <div class="logo">The Hidden Geography of Help</div>
+            <div class="nav-links">
+                <a href="#story">Story</a>
+                <a href="#data">Data</a>
+                <a href="#explore">Explore</a>
+                <a href="#methodology">Methodology</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>The Hidden Geography of Help</h1>
+            <p class="subtitle">Where you live in Harlem determines how far you walk for essential services</p>
+            <p class="byline">A Data Story About Access in Charles Hill • October 2025</p>
+        </div>
+        <div class="scroll-indicator">Scroll to explore ↓</div>
+    </section>
+
+    <!-- Introduction -->
+    <section class="prose" id="story">
+        <h2>55 Services. Millions of Steps.</h2>
+        <p>Every day, residents of Charles Hill in Harlem navigate an invisible map—a geography of help that determines whether accessing food, healthcare, or legal services means a short walk or an hour-long journey.</p>
+        
+        <span class="stat-highlight">55</span>
+        <p class="stat-subtext">Essential service locations serving Charles Hill residents</p>
+        
+        <p>From food pantries on 116th Street to health clinics near 125th, from legal aid offices to public libraries, these services form a critical safety net. But they're not evenly distributed.</p>
+        
+        <p>This is a story about distance. About access. About how the simple question "Can I get there?" shapes daily life in ways most of us never consider.</p>
+
+        <h3>Why Distance Matters</h3>
+        <p>A 10-minute walk doesn't sound like much. But for an elderly resident carrying groceries from a food pantry, a parent managing multiple children on the way to a health clinic, or someone with mobility challenges trying to reach a government office, those 10 minutes become a barrier.</p>
+        
+        <p>When services cluster in one area, it creates what researchers call "service deserts" elsewhere—neighborhoods where residents must travel farther, spend more time, and expend more energy to access help.</p>
+        
+        <p>Let's explore this hidden geography.</p>
+    </section>
+
+    <!-- Scrollytelling -->
+    <section id="scrolly">
+        <div class="sticky-viz">
+            <div id="map"></div>
+            <div class="legend">
+                <h4>Service Types</h4>
+                <div id="legend-items"></div>
+            </div>
+        </div>
+
+        <div class="steps">
+            <div class="step" data-step="0">
+                <div class="step-content">
+                    <h2>The Full Network</h2>
+                    <p>Here are all <span class="highlight">55 social service locations</span> documented in and around Charles Hill.</p>
+                    <p>Each marker represents a place where someone can find help—whether it's healthcare, food, legal services, education, or financial assistance.</p>
+                    <p>Click any marker to see its full details including exact address and service category.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="1">
+                <div class="step-content">
+                    <h2>Healthcare: The Red Markers</h2>
+                    <p>Let's focus on <span class="highlight">medical and health facilities</span>, shown in red.</p>
+                    <p>There are 7 health centers serving the area: Harlem Hospital Center, community health networks, Mount Sinai's Harlem clinic, and the H.O.P.E. Center providing free mental health services.</p>
+                    <p>Notice how they cluster along major avenues—Lenox Avenue, Manhattan Avenue, and near 125th Street.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <div class="step-content">
+                    <h2>Food Security: Orange Markers</h2>
+                    <p>Now examine the <span class="highlight">food pantries and meal services</span> in orange.</p>
+                    <p>8 locations provide free meals and groceries: Food Bank for NYC, NY Common Pantry, church-based programs, and community organizations.</p>
+                    <p>But here's the catch—operating hours vary dramatically. First Corinthian Baptist Church only opens Fridays. Others require appointments.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <div class="step-content">
+                    <h2>Education & Youth: Green Markers</h2>
+                    <p>For families, <span class="highlight">educational resources</span> shown in green are essential infrastructure.</p>
+                    <p>These 9 locations include two public libraries, the Harlem Children's Zone, police athletic leagues, after-school programs, and youth services.</p>
+                    <p>The Harlem Children's Zone anchors a "cradle-to-college" approach.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <div class="step-content">
+                    <h2>Government Services: Blue Markers</h2>
+                    <p><span class="highlight">Government offices</span> in blue provide crucial documentation and benefits.</p>
+                    <p>Two Social Security offices, two HRA locations, the Harlem Courthouse, and the Adam C. Powell Jr. State Office Building serve the community.</p>
+                    <p>Most cluster near public transit for theoretical accessibility.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="5">
+                <div class="step-content">
+                    <h2>Legal Protection: Purple Markers</h2>
+                    <p><span class="highlight">Free legal services</span> in purple defend residents' rights.</p>
+                    <p>The Neighborhood Defender Service, Legal Aid Society, Manhattan Legal Services, and the Manhattan DA's Harlem office handle housing disputes, criminal defense, family law, and more.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="6">
+                <div class="step-content">
+                    <h2>125th Street: The Service Spine</h2>
+                    <p>Notice the dramatic concentration along <span class="highlight">West 125th Street</span>—Harlem's main commercial corridor.</p>
+                    <p>Government offices, banks, post offices, libraries, community organizations, and businesses cluster here.</p>
+                    <p>If you can reach 125th Street, you can potentially access multiple services in a single trip.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="7">
+                <div class="step-content">
+                    <h2>Service Deserts</h2>
+                    <p>Now look at the gaps. See the areas with <span class="highlight">few nearby options</span>?</p>
+                    <p>Residents in these zones often need to combine subway trips with walking, or rely on multiple bus transfers.</p>
+                    <p>When you're working multiple jobs or managing health issues, these extra miles become real barriers.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="8">
+                <div class="step-content">
+                    <h2>Financial Services: Teal Markers</h2>
+                    <p><span class="highlight">Banks and check-cashing locations</span> in teal serve different economic needs.</p>
+                    <p>Traditional banks cluster near 125th Street. Check-cashing services fill gaps where traditional banking is less accessible.</p>
+                    <p>This dual system reflects economic inequality.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="9">
+                <div class="step-content">
+                    <h2>The Complete Picture</h2>
+                    <p>All 55 services, color-coded by category. This map represents <span class="highlight">decades of community organizing</span>.</p>
+                    <p>Each location emerged from identified needs, advocacy campaigns, and sustained community effort.</p>
+                    <p>The question is whether all residents can access them when needed most.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Data Visualization -->
+    <section class="data-viz" id="data">
+        <div class="data-viz-container">
+            <h2>Service Distribution by Category</h2>
+            <p>How the 55 services break down across eight categories</p>
+            <svg id="chart"></svg>
+        </div>
+    </section>
+
+    <!-- Interactive Explorer -->
+    <section class="explorer" id="explore">
+        <div class="explorer-container">
+            <h2>Explore All 55 Services</h2>
+            
+            <div class="filter-controls">
+                <button class="filter-btn active" data-category="all">All Services (55)</button>
+                <button class="filter-btn" data-category="health">Health (7)</button>
+                <button class="filter-btn" data-category="food">Food (8)</button>
+                <button class="filter-btn" data-category="education">Education (9)</button>
+                <button class="filter-btn" data-category="government">Government (6)</button>
+                <button class="filter-btn" data-category="safety">Legal (5)</button>
+                <button class="filter-btn" data-category="financial">Financial (8)</button>
+                <button class="filter-btn" data-category="community">Community (7)</button>
+                <button class="filter-btn" data-category="postal">Postal (5)</button>
+            </div>
+
+            <div class="services-grid" id="services-grid"></div>
+        </div>
+    </section>
+
+    <!-- Methodology -->
+    <section class="methodology" id="methodology">
+        <div class="methodology-container">
+            <h2>Methodology</h2>
+            
+            <h3>Data Collection</h3>
+            <p>This project documents 55 social service locations in and around the Charles Hill neighborhood of Harlem. Data was collected from:</p>
+            <ul>
+                <li>Official government directories and public records</li>
+                <li>Community organization listings</li>
+                <li>On-the-ground verification of addresses</li>
+                <li>Cross-referencing with 311 data</li>
+            </ul>
+
+            <h3>Categories</h3>
+            <p>Services were classified into eight categories:</p>
+            <ul>
+                <li><strong>Medical & Health:</strong> Hospitals, clinics, mental health services</li>
+                <li><strong>Food Pantries:</strong> Food banks, meal programs</li>
+                <li><strong>Education & Youth:</strong> Libraries, after-school programs</li>
+                <li><strong>Government Offices:</strong> Federal, state, and city agencies</li>
+                <li><strong>Public Safety & Legal:</strong> Police, legal aid</li>
+                <li><strong>Financial Services:</strong> Banks, credit unions</li>
+                <li><strong>Community Organizations:</strong> Nonprofits, advocacy groups</li>
+                <li><strong>Postal Services:</strong> USPS, shipping centers</li>
+            </ul>
+
+            <h3>Mapping Technology</h3>
+            <p>Interactive maps use Leaflet.js with OpenStreetMap data. GPS coordinates were verified for accuracy. Scrollytelling implemented with Scrollama.js.</p>
+
+            <h3>Limitations</h3>
+            <p>This project has several important limitations:</p>
+            <ul>
+                <li>Operating hours and eligibility requirements change frequently</li>
+                <li>Some services may have closed or relocated</li>
+                <li>Distance measurements don't account for walking conditions or accessibility</li>
+                <li>Analysis focuses on physical proximity, not service quality</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Conclusion -->
+    <section class="conclusion">
+        <h2>Access is About More Than Availability</h2>
+        <p>This map shows where services exist. But true access requires more: convenient hours, welcoming environments, cultural competency, and awareness that these resources exist.</p>
+        <p>Distance is just one dimension of the hidden geography of help.</p>
+        
+        <div class="cta-buttons">
+            <a href="#explore" class="cta-button">Explore the Full Directory</a>
+            <a href="https://github.com" class="cta-button secondary">View on GitHub</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>Created with Leaflet.js, D3.js, and Scrollama.js • October 2025</p>
+        <p>Data sources: NYC Open Data, community surveys, public records</p>
+        <p><a href="#methodology">Methodology</a></p>
+    </footer>
+
+    <script>
+        // All 55 resources with complete details
+        const resources = [
+            // Government (6)
+            { id: 1, name: 'Adam C. Powell Jr. State Office Building', address: '163 W 125th St', category: 'government', lat: 40.8089, lng: -73.9476 },
+            { id: 2, name: 'Social Security - 126th Street', address: '302 W 126th St, 4th Floor', category: 'government', lat: 40.8104, lng: -73.9527 },
+            { id: 3, name: 'Social Security - 102nd Street', address: '345 E 102nd St, 4th Floor', category: 'government', lat: 40.7897, lng: -73.9421 },
+            { id: 4, name: 'HRA - 125th Street', address: '132 W 125th St, #2', category: 'government', lat: 40.8086, lng: -73.9457 },
+            { id: 5, name: 'HRA - 124th Street', address: '122 E 124th St', category: 'government', lat: 40.8045, lng: -73.9387 },
+            { id: 6, name: 'Harlem Courthouse', address: '170 E 121st St', category: 'government', lat: 40.8013, lng: -73.9365 },
+            
+            // Health (7)
+            { id: 7, name: 'Harlem Hospital Center', address: '506 Lenox Ave/Malcolm X Blvd', category: 'health', lat: 40.8061, lng: -73.9394 },
+            { id: 8, name: 'Community Healthcare Network', address: '81 W 115th St', category: 'health', lat: 40.8006, lng: -73.9522 },
+            { id: 9, name: 'Family Health Center of Harlem', address: '1824 Madison Ave', category: 'health', lat: 40.8034, lng: -73.9384 },
+            { id: 10, name: 'Mount Sinai Harlem Health Center', address: '158 W 124th St', category: 'health', lat: 40.8075, lng: -73.9462 },
+            { id: 11, name: 'Citicares Community Health Center', address: '154 W 127th St', category: 'health', lat: 40.8112, lng: -73.9462 },
+            { id: 12, name: 'Ryan Health - Adair Care Center', address: '565 Manhattan Ave', category: 'health', lat: 40.8081, lng: -73.9547 },
+            { id: 13, name: 'H.O.P.E. Center Harlem', address: '228C W 116th St', category: 'health', lat: 40.8027, lng: -73.9541 },
+            
+            // Safety/Legal (5)
+            { id: 14, name: 'NYPD 28th Precinct', address: '2271-89 Adam C. Powell Jr. Blvd', category: 'safety', lat: 40.8112, lng: -73.9486 },
+            { id: 15, name: 'Manhattan DA Office - Harlem', address: '163 W 125th St', category: 'safety', lat: 40.8089, lng: -73.9476 },
+            { id: 16, name: 'Neighborhood Defender Service', address: '317 Lenox Ave', category: 'safety', lat: 40.8021, lng: -73.9431 },
+            { id: 17, name: 'Legal Aid Society', address: '2090 Adam C. Powell Jr. Blvd', category: 'safety', lat: 40.8054, lng: -73.9475 },
+            { id: 18, name: 'Manhattan Legal Services', address: '1 W 125th St, 2nd Floor', category: 'safety', lat: 40.8076, lng: -73.9438 },
+            
+            // Education (9)
+            { id: 19, name: 'Community Education Council - District 5', address: '123 Morningside Dr', category: 'education', lat: 40.8073, lng: -73.9585 },
+            { id: 20, name: 'Community Education District 3', address: '154 W 93rd St', category: 'education', lat: 40.7925, lng: -73.9714 },
+            { id: 21, name: 'Harlem Police Athletic League', address: '441 Manhattan Ave', category: 'education', lat: 40.8047, lng: -73.9562 },
+            { id: 22, name: "Harlem Children's Zone", address: '245 W 125th St', category: 'education', lat: 40.8093, lng: -73.9502 },
+            { id: 23, name: "Children's Aid Society", address: '14-32 W 118th St', category: 'education', lat: 40.8029, lng: -73.9531 },
+            { id: 24, name: 'Harlem Dowling Children & Family Services', address: '2139 Adam C. Powell Jr. Blvd', category: 'education', lat: 40.8078, lng: -73.9479 },
+            { id: 25, name: 'Dream Center Harlem', address: '205 W 119th St', category: 'education', lat: 40.8039, lng: -73.9537 },
+            { id: 26, name: 'Harry Belafonte 115th Street Library', address: '203 W 115th St', category: 'education', lat: 40.8005, lng: -73.9537 },
+            { id: 27, name: 'Harlem Public Library', address: '9 W 125th St', category: 'education', lat: 40.8077, lng: -73.9442 },
+            
+            // Food (8)
+            { id: 28, name: 'Food Bank for NYC', address: '252 W 116th St', category: 'food', lat: 40.8029, lng: -73.9544 },
+            { id: 29, name: 'NY Common Pantry', address: '8 E 109th St', category: 'food', lat: 40.7943, lng: -73.9463 },
+            { id: 30, name: 'Cathedral Community Cares', address: '1047 Amsterdam Ave', category: 'food', lat: 40.8017, lng: -73.9658 },
+            { id: 31, name: 'Refettoria Harlem', address: '37 W 119th St', category: 'food', lat: 40.8034, lng: -73.9511 },
+            { id: 32, name: 'Salvation Army Food Pantry', address: '540 Lenox Ave', category: 'food', lat: 40.8073, lng: -73.9398 },
+            { id: 33, name: 'First Corinthian Baptist Church', address: '1912 Adam C. Powell Jr. Blvd', category: 'food', lat: 40.8028, lng: -73.9468 },
+            { id: 34, name: 'Salem United Methodist Church', address: '211 W 129th St', category: 'food', lat: 40.8136, lng: -73.9491 },
+            { id: 35, name: 'Beth Hark Christian Center', address: '2 E 120th St', category: 'food', lat: 40.8021, lng: -73.9421 },
+            
+            // Postal (5)
+            { id: 36, name: 'USPS - 116th Street', address: '232 E 116th St', category: 'postal', lat: 40.7974, lng: -73.9368 },
+            { id: 37, name: 'USPS - 125th Street', address: '365 W 125th St', category: 'postal', lat: 40.8098, lng: -73.9531 },
+            { id: 38, name: 'FedEx Office Print & Shipping', address: '207 W 125th St', category: 'postal', lat: 40.8091, lng: -73.9495 },
+            { id: 39, name: 'UPS Access Point', address: '227 W 116th St', category: 'postal', lat: 40.8028, lng: -73.9541 },
+            { id: 40, name: 'The UPS Store', address: '30 E 125th St', category: 'postal', lat: 40.8053, lng: -73.9403 },
+            
+            // Financial (8)
+            { id: 41, name: 'Municipal Credit Union', address: '280 St Nicholas Ave', category: 'financial', lat: 40.8147, lng: -73.9498 },
+            { id: 42, name: 'Wells Fargo Bank', address: '143 Malcolm X Blvd', category: 'financial', lat: 40.8001, lng: -73.9469 },
+            { id: 43, name: 'Bank of America', address: '106 W 117th St', category: 'financial', lat: 40.8019, lng: -73.9521 },
+            { id: 44, name: 'Chase Bank', address: '2195 Frederick Douglass Blvd', category: 'financial', lat: 40.8094, lng: -73.9549 },
+            { id: 45, name: 'Citizens Bank', address: '2063 Frederick Douglass Blvd', category: 'financial', lat: 40.8051, lng: -73.9537 },
+            { id: 46, name: 'TD Bank', address: '300 W 125th St', category: 'financial', lat: 40.8095, lng: -73.9521 },
+            { id: 47, name: 'RiteCheck', address: '2338 Frederick Douglass Blvd', category: 'financial', lat: 40.8141, lng: -73.9567 },
+            { id: 48, name: "David's Check Cashing", address: '110 W 116th St', category: 'financial', lat: 40.8017, lng: -73.9517 },
+            
+            // Community (7)
+            { id: 49, name: 'Manhattan Community Board 10', address: '215 W 125th St', category: 'community', lat: 40.8091, lng: -73.9497 },
+            { id: 50, name: 'Harlem Mothers S.A.V.E.', address: '306 W 126th St', category: 'community', lat: 40.8105, lng: -73.9528 },
+            { id: 51, name: 'National Urban League', address: '117 W 125th St', category: 'community', lat: 40.8083, lng: -73.9453 },
+            { id: 52, name: 'NAACP - Harlem Chapter', address: '144 W 125th St', category: 'community', lat: 40.8087, lng: -73.9460 },
+            { id: 53, name: 'We All Really Matter (W.A.R.M.)', address: '8 W 126th St', category: 'community', lat: 40.8093, lng: -73.9441 },
+            { id: 54, name: 'National Action Network', address: '106 W 145th St', category: 'community', lat: 40.8240, lng: -73.9431 },
+            { id: 55, name: 'Catholic Charities Social Services', address: '125 E 105th St', category: 'community', lat: 40.7917, lng: -73.9441 }
+        ];
+
+        const categories = {
+            government: { name: 'Government', color: '#3B82F6' },
+            health: { name: 'Health', color: '#EF4444' },
+            safety: { name: 'Legal', color: '#8B5CF6' },
+            education: { name: 'Education', color: '#10B981' },
+            food: { name: 'Food', color: '#F59E0B' },
+            postal: { name: 'Postal', color: '#6366F1' },
+            financial: { name: 'Financial', color: '#14B8A6' },
+            community: { name: 'Community', color: '#EC4899' }
+        };
+
+        // Initialize map
+        const map = L.map('map', {
+            center: [40.8070, -73.9470],
+            zoom: 14,
+            zoomControl: true,
+            scrollWheelZoom: false
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Create legend
+        const legendItems = document.getElementById('legend-items');
+        Object.entries(categories).forEach(([key, cat]) => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `
+                <div class="legend-color" style="background-color: ${cat.color}"></div>
+                <span>${cat.name}</span>
+            `;
+            legendItems.appendChild(item);
+        });
+
+        // Store markers
+        let allMarkers = [];
+
+        // Create markers
+        function createMarkerIcon(color) {
+            return L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="
+                    background-color: ${color};
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 50%;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                "></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+        }
+
+        resources.forEach(resource => {
+            const marker = L.marker([resource.lat, resource.lng], {
+                icon: createMarkerIcon(categories[resource.category].color)
+            });
+
+            const popupContent = `
+                <div class="popup-header">${resource.name}</div>
+                <div class="popup-body">
+                    <div class="popup-address">📍 ${resource.address}</div>
+                    <div class="popup-category" style="background-color: ${categories[resource.category].color}">
+                        ${categories[resource.category].name}
+                    </div>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+            marker.resource = resource;
+            allMarkers.push(marker);
+        });
+
+        // Update map for scrollytelling steps
+        function updateMapForStep(step) {
+            allMarkers.forEach(marker => marker.remove());
+
+            let visibleMarkers = [];
+
+            switch(step) {
+                case 0:
+                case 9:
+                    visibleMarkers = allMarkers;
+                    map.setView([40.8070, -73.9470], 14);
+                    break;
+                case 1:
+                    visibleMarkers = allMarkers.filter(m => m.resource.category === 'health');
+                    map.setView([40.8061, -73.9450], 15);
+                    break;
+                case 2:
+                    visibleMarkers = allMarkers.filter(m => m.resource.category === 'food');
+                    map.setView([40.8040, -73.9500], 14);
+                    break;
+                case 3:
+                    visibleMarkers = allMarkers.filter(m => m.resource.category === 'education');
+                    map.setView([40.8050, -73.9500], 14);
+                    break;
+                case 4:
+                    visibleMarkers = allMarkers.filter(m => m.resource.category === 'government');
+                    map.setView([40.8060, -73.9450], 14);
+                    break;
+                case 5:
+                    visibleMarkers = allMarkers.filter(m => m.resource.category === 'safety');
+                    map.setView([40.8070, -73.9460], 15);
+                    break;
+                case 6:
+                    visibleMarkers = allMarkers.filter(m => Math.abs(m.resource.lat - 40.8089) < 0.003);
+                    map.setView([40.8089, -73.9470], 16);
+                    break;
+                case 7:
+                    visibleMarkers = allMarkers;
+                    map.setView([40.8070, -73.9470], 14);
+                    break;
+                case 8:
+                    visibleMarkers = allMarkers.filter(m => m.resource.category === 'financial');
+                    map.setView([40.8070, -73.9500], 15);
+                    break;
+            }
+
+            visibleMarkers.forEach(marker => marker.addTo(map));
+        }
+
+        updateMapForStep(0);
+
+        // Scrollama
+        try {
+            const scroller = scrollama();
+
+            scroller
+                .setup({
+                    step: '.step',
+                    offset: 0.6
+                })
+                .onStepEnter(response => {
+                    document.querySelectorAll('.step').forEach(step => {
+                        step.classList.remove('is-active');
+                    });
+                    response.element.classList.add('is-active');
+
+                    const currentStep = parseInt(response.element.dataset.step);
+                    updateMapForStep(currentStep);
+                });
+
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    scroller.resize();
+                    map.invalidateSize();
+                }, 250);
+            });
+        } catch (error) {
+            console.error('Scrollama error:', error);
+            allMarkers.forEach(marker => marker.addTo(map));
+        }
+
+        // Bar chart
+        const chartData = Object.entries(categories).map(([key, cat]) => ({
+            category: cat.name,
+            count: resources.filter(r => r.category === key).length,
+            color: cat.color
+        }));
+
+        const chartSvg = d3.select('#chart');
+        const chartMargin = {top: 40, right: 40, bottom: 60, left: 60};
+        
+        function renderChart() {
+            const container = document.querySelector('#chart');
+            const width = container.clientWidth;
+            const height = 500;
+            const chartWidth = width - chartMargin.left - chartMargin.right;
+            const chartHeight = height - chartMargin.top - chartMargin.bottom;
+
+            chartSvg.attr('width', width).attr('height', height);
+            chartSvg.selectAll('*').remove();
+
+            const g = chartSvg.append('g')
+                .attr('transform', `translate(${chartMargin.left},${chartMargin.top})`);
+
+            const x = d3.scaleBand()
+                .domain(chartData.map(d => d.category))
+                .range([0, chartWidth])
+                .padding(0.3);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(chartData, d => d.count) * 1.1])
+                .range([chartHeight, 0]);
+
+            g.append('g')
+                .attr('transform', `translate(0,${chartHeight})`)
+                .call(d3.axisBottom(x))
+                .style('color', '#fff')
+                .style('font-size', '12px')
+                .selectAll('text')
+                .attr('transform', 'rotate(-45)')
+                .style('text-anchor', 'end');
+
+            g.append('g')
+                .call(d3.axisLeft(y).ticks(6))
+                .style('color', '#fff')
+                .style('font-size', '12px');
+
+            g.selectAll('.bar')
+                .data(chartData)
+                .enter()
+                .append('rect')
+                .attr('class', 'bar')
+                .attr('x', d => x(d.category))
+                .attr('width', x.bandwidth())
+                .attr('y', chartHeight)
+                .attr('height', 0)
+                .attr('fill', d => d.color)
+                .attr('rx', 4)
+                .transition()
+                .duration(1000)
+                .attr('y', d => y(d.count))
+                .attr('height', d => chartHeight - y(d.count));
+
+            g.selectAll('.label')
+                .data(chartData)
+                .enter()
+                .append('text')
+                .attr('class', 'label')
+                .attr('x', d => x(d.category) + x.bandwidth() / 2)
+                .attr('y', d => y(d.count) - 10)
+                .attr('text-anchor', 'middle')
+                .style('fill', '#fff')
+                .style('font-size', '16px')
+                .style('font-weight', 'bold')
+                .style('opacity', 0)
+                .text(d => d.count)
+                .transition()
+                .duration(1000)
+                .style('opacity', 1);
+        }
+
+        renderChart();
+        window.addEventListener('resize', renderChart);
+
+        // Services grid
+        function renderServicesGrid(category = 'all') {
+            const grid = document.getElementById('services-grid');
+            const filtered = category === 'all' 
+                ? resources 
+                : resources.filter(r => r.category === category);
+
+            grid.innerHTML = filtered.map(service => `
+                <div class="service-card">
+                    <h3>${service.name}</h3>
+                    <div class="address">${service.address}</div>
+                    <div class="category-tag" style="background-color: ${categories[service.category].color}">
+                        ${categories[service.category].name}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        renderServicesGrid();
+
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderServicesGrid(btn.dataset.category);
+            });
+        });
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.querySelector(link.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        console.log('Charles Hill site loaded successfully!');
+        console.log(`Total services: ${resources.length}`);
+        console.log('Map initialized with real street tiles');
+    </script>
+</body>
+</html>
